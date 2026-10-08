@@ -47,7 +47,11 @@ Commands that only send text need no Python at all:
 ```toml
 [replies]
 ping = "pong {author}"   # {author} mentions whoever asked, {prefix} is the command prefix
+fallback = "Sorry {author}, I don't know {prefix}{command}. Try {prefix}help"
 ```
+`fallback` is reserved: it isn't a Command but the answer to an unknown one (`{command}` is what was typed after the
+prefix). Without it, unknown Commands get no answer. Mentions are never treated as unknown Commands: `on_mention`
+handles them.
 
 ### @mentions
 ```toml

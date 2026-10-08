@@ -12,6 +12,8 @@ presences = false
 [replies]
 # Plain-text commands, no Python needed. {author} mentions whoever asked, {prefix} is the prefix above.
 ping = "pong {author}"
+# Reserved: the answer to an unknown Command. {command} is what they typed after the prefix.
+fallback = "Sorry {author}, I don't know {prefix}{command}. Try {prefix}help"
 
 [mentions]
 as_prefix = true # "@Bot hello" works the same as "!hello"

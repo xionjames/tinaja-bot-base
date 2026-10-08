@@ -23,6 +23,7 @@ class Config:
     context_file: str = 'CONTEXT.md'
     intents: Intents = field(default_factory=Intents)
     replies: dict[str, str] = field(default_factory=dict)
+    reply_fallback: str | None = None  # [replies] fallback: the answer to an unknown Command
     mentions: bool = False  # True when bot.toml has a [mentions] table
     mention_prefix: bool = False
     mention_reply: str | None = None
@@ -48,6 +49,8 @@ class Config:
             raise ValueError('No token found. Make sure to set the DISCORD_BOT_TOKEN environment variable.')
 
         mentions = data.get('mentions')
+        replies = dict(data.get('replies', {}))
+        fallback = replies.pop('fallback', None)  # reserved: answers unknown Commands instead of being one
         return cls(
             token=token or '',
             name=data.get('name', cls.name),
@@ -56,7 +59,8 @@ class Config:
             cogs_dir=data.get('cogs_dir', cls.cogs_dir),
             context_file=data.get('context_file', cls.context_file),
             intents=Intents(**data.get('intents', {})),
-            replies=dict(data.get('replies', {})),
+            replies=replies,
+            reply_fallback=fallback,
             mentions=mentions is not None,
             mention_prefix=(mentions or {}).get('as_prefix', False),
             mention_reply=(mentions or {}).get('reply'),

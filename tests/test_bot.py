@@ -1,9 +1,11 @@
 from types import SimpleNamespace
 
 import pytest
+from discord.ext import commands
 
 from tinaja_base.bot import BaseBot
 from tinaja_base.config import Config, Intents
+from tinaja_base.testing import FakeContext
 
 HELLO = """from discord.ext import commands
 
@@ -74,4 +76,56 @@ async def test_mention_event_reaches_cog_listeners(project):
     for listener in bot.extra_events['on_mention']:
         await listener(object(), 'hi there')
     assert bot.get_cog('Echo').heard == ['hi there']
+    await bot.close()
+
+
+def failed_command(prefix='!', name='nope'):
+    ctx = FakeContext()
+    ctx.prefix = prefix
+    ctx.invoked_with = name
+    return ctx
+
+
+FALLBACK = "Sorry {author}, I don't know {prefix}{command}"
+
+
+async def test_unknown_command_gets_the_fallback_reply(project):
+    bot = await make_bot(project, reply_fallback=FALLBACK)
+    ctx = failed_command()
+    await bot.on_command_error(ctx, commands.CommandNotFound('Command "nope" is not found'))
+    assert ctx.sent == ["Sorry @member, I don't know !nope"]
+    await bot.close()
+
+
+async def test_no_fallback_for_mentions_or_other_errors(project, monkeypatch):
+    bot = await make_bot(project, reply_fallback=FALLBACK, mention_prefix=True)
+    defaults = []
+
+    async def default_handler(self, ctx, error):
+        defaults.append(error)
+
+    monkeypatch.setattr(commands.Bot, 'on_command_error', default_handler)
+
+    # '@Bot hi there' is answered by on_mention, not as an unknown Command
+    mention = failed_command(prefix='<@42> ', name='hi')
+    await bot.on_command_error(mention, commands.CommandNotFound('Command "hi" is not found'))
+    bad_argument = failed_command(name='recap')
+    await bot.on_command_error(bad_argument, commands.BadArgument('not a number'))
+
+    assert mention.sent == bad_argument.sent == []
+    assert len(defaults) == 2
+    await bot.close()
+
+
+async def test_without_fallback_unknown_commands_stay_silent(project, monkeypatch):
+    bot = await make_bot(project)
+    defaults = []
+
+    async def default_handler(self, ctx, error):
+        defaults.append(error)
+
+    monkeypatch.setattr(commands.Bot, 'on_command_error', default_handler)
+    ctx = failed_command()
+    await bot.on_command_error(ctx, commands.CommandNotFound('Command "nope" is not found'))
+    assert ctx.sent == [] and len(defaults) == 1
     await bot.close()

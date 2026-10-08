@@ -6,6 +6,7 @@ The example bot of [tinaja-bot-base](../..), generated with `tinaja-bot new "Hel
 - `@Hello Bot` with anything else → `World`, through the `on_mention` listener in [cogs/hello.py](cogs/hello.py)
 - `!recap [n]` → the last *n* messages Members wrote in the channel ([cogs/recap.py](cogs/recap.py))
 - `!ping` → `pong @you`, a plain-text reply defined in [bot.toml](bot.toml)
+- `!anything-else` → `Sorry @you, I don't know !anything-else. Try !help`, the `fallback` reply in [bot.toml](bot.toml)
 - `!glossary [term]` → definitions from [CONTEXT.md](CONTEXT.md)
 
 Unlike a generated bot, it depends on the framework through the local path `../..`, so it always tests the code in

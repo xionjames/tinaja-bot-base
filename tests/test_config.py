@@ -35,6 +35,7 @@ members = true
 
 [replies]
 ping = "pong"
+fallback = "unknown"
 
 [mentions]
 as_prefix = true
@@ -45,7 +46,8 @@ reply = "hi"
     assert config.name == 'Hello Bot'
     assert config.prefix == '?'
     assert config.intents == Intents(message_content=True, members=True)
-    assert config.replies == {'ping': 'pong'}
+    assert config.replies == {'ping': 'pong'}  # fallback is not a Command
+    assert config.reply_fallback == 'unknown'
     assert (config.mentions, config.mention_prefix, config.mention_reply) == (True, True, 'hi')
 
 

@@ -1,9 +1,9 @@
 from discord.ext import commands
 
 
-def format_reply(text, author, prefix):
+def format_reply(text, author, prefix, command=''):
     # Plain replace rather than str.format, so stray braces in bot.toml can't break a reply
-    return text.replace('{author}', author.mention).replace('{prefix}', prefix)
+    return text.replace('{author}', author.mention).replace('{prefix}', prefix).replace('{command}', command)
 
 
 def reply_commands(replies, prefix):
