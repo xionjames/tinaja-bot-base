@@ -23,6 +23,17 @@ cd examples/hello-bot && uv sync && uv run ruff check . && uv run ruff format --
 Before calling a change done, run lint, format check and tests for the framework and, if the change can affect bots,
 for `examples/hello-bot`. That's exactly what [.github/workflows/test.yaml](.github/workflows/test.yaml) runs.
 
+## Creating a Bot
+```bash
+uv run tinaja-bot new "My Bot" --dir ~/code      # creates ~/code/my-bot
+cd ~/code/my-bot && uv sync && cp env.sample .env  # then set DISCORD_BOT_TOKEN in .env
+uv run tinaja-bot run
+```
+Pass `--source <local path>` to `new` to depend on this clone (editable) while changing the framework and a Bot
+together. Behaviour goes in the Bot's `bot.toml` (Replies), `CONTEXT.md` (glossary) and `cogs/` (Python Cogs).
+The generated folder's README covers running, testing, `check` / `build` / `publish` and Docker; see also
+[examples/hello-bot](examples/hello-bot) and the root [README.md](README.md).
+
 ## Layout
 ```
 tinaja_base/
