@@ -14,7 +14,10 @@ LANGUAGES_DIR = Path(__file__).resolve().parent / 'templates' / 'languages'
 LANGUAGES = {
     'python': [],
     'ruby': ['cogs/hello.py', 'tests/test_hello.py'],
+    'ts': ['cogs/hello.py', 'tests/test_hello.py'],
 }
+# What a language's dependency manager installs first after `tinaja-bot new`
+INSTALL_STEPS = {'ruby': '(cd plugin && bundle install)', 'ts': '(cd plugin && npm install)'}
 GITHUB_REMOTE = re.compile(r'github\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$')
 
 
@@ -84,6 +87,7 @@ def cmd_new(args):
         'bot_slug': slug,
         'framework_source': framework_source(source, args.rev),
         'ruby_sdk_source': ruby_sdk_source(source, args.rev),
+        'npm_sdk_source': npm_sdk_source(source, args.rev),
     }
     for relative, template in template_files(args.lang).items():
         destination = target / relative
@@ -93,8 +97,8 @@ def cmd_new(args):
 
     print(f'Created {target}. Next steps:')
     print(f'  cd {target} && uv sync && cp env.sample .env  # then set DISCORD_BOT_TOKEN')
-    if args.lang == 'ruby':
-        print('  (cd plugin && bundle install)')
+    if args.lang in INSTALL_STEPS:
+        print(f'  {INSTALL_STEPS[args.lang]}')
     print('  uv run tinaja-bot run')
 
 
@@ -128,6 +132,15 @@ def ruby_sdk_source(source, rev):
     if not _is_remote(source):
         return f"path: '{(Path(source).resolve() / 'sdk' / 'ruby').as_posix()}'"
     return f"git: '{https_url(source)}', ref: '{rev}', glob: 'sdk/ruby/*.gemspec'"
+
+
+def npm_sdk_source(source, rev):
+    """The package.json dependency a TypeScript Plugin uses for the tinaja package (the repo's root package.json)"""
+    source = framework_location(source)
+    if not _is_remote(source):
+        return f'file:{Path(source).resolve().as_posix()}'
+    url = https_url(source)
+    return f'git+{url}{"" if url.endswith(".git") else ".git"}#{rev}'
 
 
 def framework_source(source, rev):

@@ -69,3 +69,25 @@ jobs:
         run: |
           uv sync --locked
           cd plugin && bundle install && bundle exec rake test
+
+  typescript:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.22"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Test the TypeScript SDK
+        run: npm test
+
+      - name: Check the TypeScript SDK against the protocol recordings
+        run: uv run --no-project python sdk/conformance/run.py -- node sdk/ts/conformance/plugin.ts

@@ -286,3 +286,18 @@ def test_check_warns_about_missing_lockfiles_and_mentions(bot_project, docker):
     assert problems == []
     assert any('plugin/Gemfile has no lockfile' in w for w in warnings)
     assert any('no [mentions] table' in w for w in warnings)
+
+
+def test_new_ts_bot_has_a_typescript_plugin(tmp_path, monkeypatch):
+    assert cli.main(['new', 'TS Bot', '--dir', str(tmp_path), '--source', REMOTE, '--rev', 'v1', '--lang', 'ts']) == 0
+    project = tmp_path / 'ts-bot'
+    names = {str(p.relative_to(project)) for p in project.rglob('*') if p.is_file()}
+    assert {'plugin/bot.ts', 'plugin/package.json', 'plugin/test/bot.test.ts', 'Dockerfile'} <= names
+    assert 'cogs/hello.py' not in names
+    assert f'"tinaja": "git+{REMOTE}.git#v1"' in (project / 'plugin' / 'package.json').read_text()
+    monkeypatch.setenv('DISCORD_BOT_TOKEN', 'abc')
+    assert Config.load(project / 'bot.toml').plugins['main'].run == 'node bot.ts'
+
+
+def test_npm_sdk_from_a_local_framework(tmp_path):
+    assert cli.npm_sdk_source(str(tmp_path), 'main') == f'file:{tmp_path.as_posix()}'

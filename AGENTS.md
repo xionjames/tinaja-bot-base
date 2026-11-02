@@ -26,6 +26,8 @@ SDKs are tested with their own tools plus the language-agnostic conformance runn
 cd sdk/ruby && bundle exec rake test                                    # Ruby SDK
 uv run python sdk/conformance/run.py -- ruby sdk/ruby/conformance/plugin.rb
 cd examples/ruby-bot/plugin && bundle exec rake test                    # Ruby example
+npm test                                                                # TypeScript SDK (no dependencies)
+uv run python sdk/conformance/run.py -- node sdk/ts/conformance/plugin.ts
 ```
 The Python SDK's tests (`sdk/python/tests`, including conformance) run with the framework's `uv run pytest`.
 Before calling a change done, run lint, format check and tests for the framework and, if the change can affect bots,
@@ -90,6 +92,9 @@ out.
   them. Ids are strings (snowflakes overflow JavaScript numbers). Change [docs/protocol.md](docs/protocol.md), the
   fixtures in `sdk/conformance/fixtures` and every SDK together; the conformance runner catches SDKs left behind.
 - A Plugin's stdout is the protocol: SDKs and Plugins log to stderr.
+- The root `package.json` is the TypeScript SDK's package: npm can't install a git dependency from a subfolder, so
+  Bots depend on `git+<repo>.git#<rev>` and `exports` points into `sdk/ts`. The SDK is plain ESM JavaScript with
+  handwritten `.d.ts` files, so it needs no build step; keep the two in sync.
 
 ## Working style
 - Ask before assuming when a request is ambiguous; surface the ambiguity explicitly.
