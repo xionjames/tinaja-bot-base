@@ -15,9 +15,9 @@ LANGUAGES = {
     'python': [],
     'ruby': ['cogs/hello.py', 'tests/test_hello.py'],
     'ts': ['cogs/hello.py', 'tests/test_hello.py'],
+    'go': ['cogs/hello.py', 'tests/test_hello.py'],
 }
-# What a language's dependency manager installs first after `tinaja-bot new`
-INSTALL_STEPS = {'ruby': '(cd plugin && bundle install)', 'ts': '(cd plugin && npm install)'}
+GO_SDK_MODULE = 'github.com/xionjames/tinaja-bot-base/sdk/go'
 GITHUB_REMOTE = re.compile(r'github\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$')
 
 
@@ -88,6 +88,7 @@ def cmd_new(args):
         'framework_source': framework_source(source, args.rev),
         'ruby_sdk_source': ruby_sdk_source(source, args.rev),
         'npm_sdk_source': npm_sdk_source(source, args.rev),
+        **go_sdk_values(source, args.rev),
     }
     for relative, template in template_files(args.lang).items():
         destination = target / relative
@@ -97,8 +98,10 @@ def cmd_new(args):
 
     print(f'Created {target}. Next steps:')
     print(f'  cd {target} && uv sync && cp env.sample .env  # then set DISCORD_BOT_TOKEN')
-    if args.lang in INSTALL_STEPS:
-        print(f'  {INSTALL_STEPS[args.lang]}')
+    # What a language's dependency manager installs first
+    install = {'ruby': 'bundle install', 'ts': 'npm install', 'go': f'{values["go_get_step"]} && go build -o bot .'}
+    if args.lang in install:
+        print(f'  (cd plugin && {install[args.lang]})')
     print('  uv run tinaja-bot run')
 
 
@@ -141,6 +144,17 @@ def npm_sdk_source(source, rev):
         return f'file:{Path(source).resolve().as_posix()}'
     url = https_url(source)
     return f'git+{url}{"" if url.endswith(".git") else ".git"}#{rev}'
+
+
+def go_sdk_values(source, rev):
+    """go.mod lines and the command that add the Go SDK to a Go Plugin"""
+    source = framework_location(source)
+    if not _is_remote(source):
+        path = (Path(source).resolve() / 'sdk' / 'go').as_posix()
+        require = f'\nrequire {GO_SDK_MODULE} v0.0.0\n\nreplace {GO_SDK_MODULE} => {path}\n'
+        return {'go_sdk_require': require, 'go_get_step': 'go mod tidy'}
+    # The module path is fixed by sdk/go/go.mod, so a fork still downloads it from there
+    return {'go_sdk_require': '', 'go_get_step': f'go get {GO_SDK_MODULE}@{rev}'}
 
 
 def framework_source(source, rev):

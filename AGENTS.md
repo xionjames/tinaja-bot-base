@@ -28,6 +28,8 @@ uv run python sdk/conformance/run.py -- ruby sdk/ruby/conformance/plugin.rb
 cd examples/ruby-bot/plugin && bundle exec rake test                    # Ruby example
 npm test                                                                # TypeScript SDK (no dependencies)
 uv run python sdk/conformance/run.py -- node sdk/ts/conformance/plugin.ts
+cd sdk/go && gofmt -l . && go vet ./... && go test ./... && go build -o conformance-plugin ./conformance  # Go SDK
+uv run python sdk/conformance/run.py -- sdk/go/conformance-plugin
 ```
 The Python SDK's tests (`sdk/python/tests`, including conformance) run with the framework's `uv run pytest`.
 Before calling a change done, run lint, format check and tests for the framework and, if the change can affect bots,
