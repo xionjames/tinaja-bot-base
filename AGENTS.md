@@ -31,6 +31,9 @@ uv run python sdk/conformance/run.py -- node sdk/ts/conformance/plugin.ts
 cd sdk/go && gofmt -l . && go vet ./... && go test ./... && go build -o conformance-plugin ./conformance  # Go SDK
 uv run python sdk/conformance/run.py -- sdk/go/conformance-plugin
 ```
+The Java SDK has no build tool on purpose: CI and [jitpack.yml](jitpack.yml) build it with `javac`; see the `java` job
+in [.github/workflows/test.yaml](.github/workflows/test.yaml) for the commands. That job also builds generated Java and
+Kotlin Bots with Gradle.
 The Python SDK's tests (`sdk/python/tests`, including conformance) run with the framework's `uv run pytest`.
 Before calling a change done, run lint, format check and tests for the framework and, if the change can affect bots,
 for `examples/hello-bot`. That's exactly what [.github/workflows/test.yaml](.github/workflows/test.yaml) runs.
@@ -97,6 +100,9 @@ out.
 - The root `package.json` is the TypeScript SDK's package: npm can't install a git dependency from a subfolder, so
   Bots depend on `git+<repo>.git#<rev>` and `exports` points into `sdk/ts`. The SDK is plain ESM JavaScript with
   handwritten `.d.ts` files, so it needs no build step; keep the two in sync.
+- `jitpack.yml` publishes the Java SDK as `com.github.<owner>:tinaja-bot-base:<branch>-SNAPSHOT` (or a tag or commit).
+  Java and Kotlin templates share the `jvm` overlay (`OVERLAYS` in cli.py). A Plugin's stdout is the protocol, so
+  JVM Plugins run Gradle's `installDist` start script, never `gradle run`.
 
 ## Working style
 - Ask before assuming when a request is ambiguous; surface the ambiguity explicitly.

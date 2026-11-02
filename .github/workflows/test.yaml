@@ -118,3 +118,46 @@ jobs:
 
       - name: Check the Go SDK against the protocol recordings
         run: uv run --no-project python sdk/conformance/run.py -- sdk/go/conformance-plugin
+
+  java:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.22"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # The SDK has no build tool: javac builds it, the way jitpack.yml does
+      - name: Test the Java SDK
+        working-directory: sdk/java
+        run: |
+          javac -Xlint:all -Werror --release 21 -d build/classes $(find src/main/java -name '*.java')
+          javac --release 21 -cp build/classes -d build/test src/test/java/tinaja/TinajaTest.java conformance/ConformancePlugin.java
+          java -cp build/classes:build/test tinaja.TinajaTest
+
+      - name: Check the Java SDK against the protocol recordings
+        run: uv run --no-project python sdk/conformance/run.py -- java -cp sdk/java/build/classes:sdk/java/build/test ConformancePlugin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.2"
+
+      # Generated Java and Kotlin Bots, built with Gradle against this checkout's SDK
+      - name: Test the Java and Kotlin templates
+        run: |
+          uv sync --locked
+          for lang in java kotlin; do
+            uv run tinaja-bot new "$lang bot" --lang $lang --source . --dir "$RUNNER_TEMP"
+            (cd "$RUNNER_TEMP/$lang-bot/plugin" && gradle test installDist --no-daemon)
+            (cd "$RUNNER_TEMP/$lang-bot" && uv sync && uv run tinaja-bot check > check.txt 2>&1 || true; cat check.txt; ! grep -q 'plugin "main"' check.txt)
+          done

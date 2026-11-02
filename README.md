@@ -115,8 +115,9 @@ plugin.command('hello', help: 'Says World') { |ctx| ctx.send('World') }
 plugin.on_mention { |message, text| message.reply("You said: #{text}") }
 plugin.run
 ```
-- `tinaja-bot new "My Bot" --lang ruby` (or `ts`, `go`) generates a Bot in that language, with its tests,
-  Dockerfile and workflow. Compiled Plugins (Go) run a binary you build; the image builds it for you.
+- `tinaja-bot new "My Bot" --lang ruby` (or `ts`, `go`, `java`, `kotlin`) generates a Bot in that language, with
+  its tests, Dockerfile and workflow. Compiled Plugins (Go, Java, Kotlin) run a program you build; the image builds
+  it for you.
 - Each Plugin manages its own dependencies with its own tools (`bundle install`, `npm ci`, `go mod`...).
 - Replies, the Glossary and Python Cogs keep working next to Plugins, and a Bot can have several Plugins.
 - `tinaja-bot check` starts every Plugin to check that it registers, and warns about a manifest without a lockfile.
@@ -126,6 +127,7 @@ plugin.run
 | Ruby | [`sdk/ruby`](sdk/ruby) (gem `tinaja`) | `Tinaja::Testing.run_command` |
 | TypeScript / JavaScript | [`sdk/ts`](sdk/ts) (npm package `tinaja`, from git) | `runCommand` from `tinaja/testing` |
 | Go | [`sdk/go`](sdk/go) (module `github.com/xionjames/tinaja-bot-base/sdk/go`) | package `tinajatest` |
+| Java, Kotlin | [`sdk/java`](sdk/java) (`com.github.xionjames:tinaja-bot-base` on JitPack) | `tinaja.testing.Testing` |
 | Python | [`sdk/python`](sdk/python): the reference implementation; Python Bots should use Cogs | `tinaja_plugin.testing` |
 
 No SDK for your language yet? The [protocol](docs/protocol.md) is one page, and
