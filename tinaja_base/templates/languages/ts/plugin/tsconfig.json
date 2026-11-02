@@ -1,0 +1,12 @@
+{
+  // Only for editors and an optional `npx tsc`: Node runs the .ts files directly by stripping their types,
+  // so use type annotations only (no enums or namespaces)
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "nodenext",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
+  }
+}

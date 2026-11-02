@@ -115,7 +115,8 @@ plugin.command('hello', help: 'Says World') { |ctx| ctx.send('World') }
 plugin.on_mention { |message, text| message.reply("You said: #{text}") }
 plugin.run
 ```
-- `tinaja-bot new "My Bot" --lang ruby` generates a Ruby Bot, with its tests, Dockerfile and workflow.
+- `tinaja-bot new "My Bot" --lang ruby` (or `--lang ts`) generates a Bot in that language, with its tests,
+  Dockerfile and workflow.
 - Each Plugin manages its own dependencies with its own tools (`bundle install`, `npm ci`, `go mod`...).
 - Replies, the Glossary and Python Cogs keep working next to Plugins, and a Bot can have several Plugins.
 - `tinaja-bot check` starts every Plugin to check that it registers, and warns about a manifest without a lockfile.
@@ -123,6 +124,7 @@ plugin.run
 | Language | SDK | Test helpers |
 | --- | --- | --- |
 | Ruby | [`sdk/ruby`](sdk/ruby) (gem `tinaja`) | `Tinaja::Testing.run_command` |
+| TypeScript / JavaScript | [`sdk/ts`](sdk/ts) (npm package `tinaja`, from git) | `runCommand` from `tinaja/testing` |
 | Python | [`sdk/python`](sdk/python): the reference implementation; Python Bots should use Cogs | `tinaja_plugin.testing` |
 
 No SDK for your language yet? The [protocol](docs/protocol.md) is one page, and
