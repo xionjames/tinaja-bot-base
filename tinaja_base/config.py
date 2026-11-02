@@ -14,6 +14,14 @@ class Intents:
 
 
 @dataclass(frozen=True)
+class Plugin:
+    """A [plugins.<name>] table: a process in any language that speaks docs/protocol.md"""
+
+    run: str
+    cwd: str = '.'  # relative to the Bot folder
+
+
+@dataclass(frozen=True)
 class Config:
     token: str
     name: str = 'Bot'
@@ -27,6 +35,7 @@ class Config:
     mentions: bool = False  # True when bot.toml has a [mentions] table
     mention_prefix: bool = False
     mention_reply: str | None = None
+    plugins: dict[str, Plugin] = field(default_factory=dict)
 
     @property
     def cogs_path(self):
@@ -64,4 +73,5 @@ class Config:
             mentions=mentions is not None,
             mention_prefix=(mentions or {}).get('as_prefix', False),
             mention_reply=(mentions or {}).get('reply'),
+            plugins={name: Plugin(**table) for name, table in data.get('plugins', {}).items()},
         )

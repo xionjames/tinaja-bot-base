@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import tomllib
 
 import pytest
@@ -231,3 +232,57 @@ def test_check_needs_a_usable_lockfile(bot_project, docker):
     problems = check_problems(bot_project)
     assert 'uv.lock is not usable' in problems
     assert 'does not appear to be a Python project' in problems
+
+
+def test_new_ruby_bot_has_a_plugin_instead_of_cogs(tmp_path, monkeypatch):
+    assert (
+        cli.main(['new', 'Ruby Bot', '--dir', str(tmp_path), '--source', REMOTE, '--rev', 'v1', '--lang', 'ruby']) == 0
+    )
+    project = tmp_path / 'ruby-bot'
+    names = {str(p.relative_to(project)) for p in project.rglob('*') if p.is_file()}
+    assert {'plugin/bot.rb', 'plugin/Gemfile', 'plugin/test/bot_test.rb', 'Dockerfile', '.python-version'} <= names
+    assert not names & {'cogs/hello.py', 'tests/test_hello.py'}
+
+    gemfile = (project / 'plugin' / 'Gemfile').read_text()
+    assert f"gem 'tinaja', git: '{REMOTE}', ref: 'v1', glob: 'sdk/ruby/*.gemspec'" in gemfile
+    assert 'FROM ruby:' in (project / 'Dockerfile').read_text()
+    monkeypatch.setenv('DISCORD_BOT_TOKEN', 'abc')
+    assert Config.load(project / 'bot.toml').plugins['main'].cwd == 'plugin'
+
+
+def test_ruby_sdk_from_a_local_framework(tmp_path):
+    assert cli.ruby_sdk_source(str(tmp_path), 'main') == f"path: '{(tmp_path / 'sdk' / 'ruby').as_posix()}'"
+
+
+REFERENCE_PLUGIN = (cli.FRAMEWORK_ROOT / 'sdk' / 'python' / 'conformance' / 'plugin.py').as_posix()
+
+
+def use_plugin(project, run, mentions=True):
+    """Turn the generated bot into one whose only code is a Plugin"""
+    (project / 'cogs' / 'hello.py').unlink()
+    bot_toml = project / 'bot.toml'
+    text = bot_toml.read_text().replace('ping = "pong {author}"', '')
+    if not mentions:
+        text = text.replace('[mentions]', '[not_mentions]')
+    (project / 'plugin').mkdir()
+    bot_toml.write_text(text + f"\n[plugins.main]\ncwd = 'plugin'\nrun = '''{run}'''\n")
+
+
+def test_check_starts_plugins(bot_project, docker, capsys):
+    use_plugin(bot_project, f'"{sys.executable}" "{REFERENCE_PLUGIN}"')
+    assert cli.main(['check']) == 0
+    assert 'warning' not in capsys.readouterr().out
+
+
+def test_check_reports_plugins_that_do_not_start(bot_project, docker):
+    use_plugin(bot_project, 'no-such-runtime bot.rb')
+    assert 'plugin "main" could not start "no-such-runtime bot.rb"' in check_problems(bot_project)
+
+
+def test_check_warns_about_missing_lockfiles_and_mentions(bot_project, docker):
+    use_plugin(bot_project, f'"{sys.executable}" "{REFERENCE_PLUGIN}"', mentions=False)
+    (bot_project / 'plugin' / 'Gemfile').write_text('')
+    problems, warnings = cli.check_project(bot_project)
+    assert problems == []
+    assert any('plugin/Gemfile has no lockfile' in w for w in warnings)
+    assert any('no [mentions] table' in w for w in warnings)

@@ -98,6 +98,37 @@ async def test_hello():
 ```
 `FakeContext(channel=FakeChannel([fake_message('hi')]))` seeds a channel history for cogs that read it.
 
+## Plugins: Commands in other languages
+A Bot's code doesn't have to be Python. A **Plugin** is a long-running process, in any language, that the Bot starts
+and talks to over stdin/stdout in JSON lines. The Bot keeps the Discord connection; the Plugin registers Commands and
+gets `message` and `mention` events. It answers with actions: send, reply, react, or read the channel history.
+```toml
+[plugins.main]
+cwd = "plugin"                    # the Plugin's folder, with its own Gemfile / package.json / go.mod...
+run = "bundle exec ruby bot.rb"   # run without a shell; the Plugin never sees DISCORD_BOT_TOKEN
+```
+```ruby
+# plugin/bot.rb, with the tinaja gem from sdk/ruby
+require 'tinaja'
+plugin = Tinaja::Plugin.new
+plugin.command('hello', help: 'Says World') { |ctx| ctx.send('World') }
+plugin.on_mention { |message, text| message.reply("You said: #{text}") }
+plugin.run
+```
+- `tinaja-bot new "My Bot" --lang ruby` generates a Ruby Bot, with its tests, Dockerfile and workflow.
+- Each Plugin manages its own dependencies with its own tools (`bundle install`, `npm ci`, `go mod`...).
+- Replies, the Glossary and Python Cogs keep working next to Plugins, and a Bot can have several Plugins.
+- `tinaja-bot check` starts every Plugin to check that it registers, and warns about a manifest without a lockfile.
+
+| Language | SDK | Test helpers |
+| --- | --- | --- |
+| Ruby | [`sdk/ruby`](sdk/ruby) (gem `tinaja`) | `Tinaja::Testing.run_command` |
+| Python | [`sdk/python`](sdk/python): the reference implementation; Python Bots should use Cogs | `tinaja_plugin.testing` |
+
+No SDK for your language yet? The [protocol](docs/protocol.md) is one page, and
+[`sdk/conformance`](sdk/conformance) checks a Plugin against recorded exchanges.
+[`examples/ruby-bot`](examples/ruby-bot) is hello-bot written as a Ruby Plugin.
+
 ## Docker and ghcr.io
 Every generated bot has a `Dockerfile` and a GitHub Actions workflow:
 ```bash
@@ -118,7 +149,7 @@ An empty glossary is only a warning.
 The image installs the framework from its git URL, so this repository must be reachable by Docker (public).
 
 ## Example
-[`examples/hello-bot`](examples/hello-bot) answers `!hello` and any @mention with `World`, and `!recap [n]` with the
+[`examples/hello-bot`](examples/hello-bot) (and its Ruby twin [`examples/ruby-bot`](examples/ruby-bot)) answers `!hello` and any @mention with `World`, and `!recap [n]` with the
 latest messages in the channel:
 ```bash
 cd examples/hello-bot && uv sync && uv run pytest

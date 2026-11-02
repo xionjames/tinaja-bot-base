@@ -1,0 +1,12 @@
+{"in": {"type": "hello", "protocol": 1, "bot": {"name": "Conformance Bot", "prefix": "!", "id": "42"}}}
+{"out": {"type": "register", "commands": [{"name": "hello", "help": "Says World"}, {"name": "echo", "help": "Repeats what you say"}, {"name": "recap", "help": "The latest messages in the channel"}], "events": ["mention", "message"]}}
+{"in": {"type": "mention", "message": {"id": "200", "content": "<@42> hi there", "channel_id": "10", "author": {"id": "1", "name": "jane", "display_name": "Jane", "mention": "<@1>", "bot": false}}, "text": "hi there"}}
+{"out": {"type": "send", "channel_id": "10", "content": "You said: hi there", "reply_to": "200"}}
+{"in": {"type": "message", "message": {"id": "201", "content": "ping", "channel_id": "12", "author": {"id": "2", "name": "bob", "display_name": "Bob", "mention": "<@2>", "bot": false}}}}
+{"out": {"type": "react", "channel_id": "12", "message_id": "201", "emoji": "🏓"}}
+{"in": {"type": "message", "message": {"id": "202", "content": "not a ping", "channel_id": "12", "author": {"id": "2", "name": "bob", "display_name": "Bob", "mention": "<@2>", "bot": false}}}}
+{"in": {"type": "error", "error": "unknown action 'dance'"}}
+{"in": {"type": "some_future_event", "extra": true}}
+{"in": {"type": "command", "name": "hello", "args": [], "channel_id": "10", "author": {"id": "1", "name": "jane", "display_name": "Jane", "mention": "<@1>", "bot": false}, "message": {"id": "203", "content": "!hello", "channel_id": "10", "author": {"id": "1", "name": "jane", "display_name": "Jane", "mention": "<@1>", "bot": false}}, "future_field": 1}}
+{"out": {"type": "send", "channel_id": "10", "content": "World"}}
+{"in": {"type": "shutdown"}}

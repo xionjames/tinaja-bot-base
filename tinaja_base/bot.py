@@ -6,6 +6,7 @@ from tinaja_base.cogs.mentions import Mentions
 from tinaja_base.cogs.replies import format_reply, reply_commands
 from tinaja_base.context import Context
 from tinaja_base.loader import find_cogs
+from tinaja_base.plugins import PluginCog
 
 
 class BaseBot(commands.Bot):
@@ -29,6 +30,8 @@ class BaseBot(commands.Bot):
             await self.add_cog(Mentions(self, self.config.mention_reply))
         for cog in find_cogs(self.config.cogs_path):
             await self.add_cog(cog())
+        for name, plugin in self.config.plugins.items():
+            await self.add_cog(PluginCog(self, name, plugin))
 
     async def on_command_error(self, ctx, error):
         # Only for the real prefix: '@Bot hi there' isn't a failed Command, the Mentions cog answers it
