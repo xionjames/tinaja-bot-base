@@ -1,0 +1,10 @@
+# JitPack builds the Java SDK (sdk/java) for Java and Kotlin Plugins:
+#   implementation("com.github.xionjames:tinaja-bot-base:main-SNAPSHOT")
+# The SDK has no dependencies and no build tool, so javac and jar build it.
+jdk:
+  - openjdk21
+install:
+  - mkdir -p sdk/java/build/classes
+  - javac --release 21 -d sdk/java/build/classes $(find sdk/java/src/main/java -name '*.java')
+  - jar --create --file sdk/java/build/tinaja.jar -C sdk/java/build/classes .
+  - mvn install:install-file -Dfile=sdk/java/build/tinaja.jar -DgroupId=$GROUP -DartifactId=$ARTIFACT -Dversion=$VERSION -Dpackaging=jar -DgeneratePom=true

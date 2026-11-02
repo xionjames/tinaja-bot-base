@@ -1,0 +1,14 @@
+{
+  "name": "tinaja",
+  "version": "0.1.0",
+  "description": "Write tinaja-bot-base Plugins (Discord Bot Commands and listeners) in TypeScript or JavaScript",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.6" },
+  "exports": {
+    ".": { "types": "./sdk/ts/index.d.ts", "default": "./sdk/ts/index.js" },
+    "./testing": { "types": "./sdk/ts/testing.d.ts", "default": "./sdk/ts/testing.js" }
+  },
+  "files": ["sdk/ts/index.js", "sdk/ts/index.d.ts", "sdk/ts/testing.js", "sdk/ts/testing.d.ts"],
+  "scripts": { "test": "node --test sdk/ts/test/*.test.js" }
+}

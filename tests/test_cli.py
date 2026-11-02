@@ -286,3 +286,66 @@ def test_check_warns_about_missing_lockfiles_and_mentions(bot_project, docker):
     assert problems == []
     assert any('plugin/Gemfile has no lockfile' in w for w in warnings)
     assert any('no [mentions] table' in w for w in warnings)
+
+
+def test_new_ts_bot_has_a_typescript_plugin(tmp_path, monkeypatch):
+    assert cli.main(['new', 'TS Bot', '--dir', str(tmp_path), '--source', REMOTE, '--rev', 'v1', '--lang', 'ts']) == 0
+    project = tmp_path / 'ts-bot'
+    names = {str(p.relative_to(project)) for p in project.rglob('*') if p.is_file()}
+    assert {'plugin/bot.ts', 'plugin/package.json', 'plugin/test/bot.test.ts', 'Dockerfile'} <= names
+    assert 'cogs/hello.py' not in names
+    assert f'"tinaja": "git+{REMOTE}.git#v1"' in (project / 'plugin' / 'package.json').read_text()
+    monkeypatch.setenv('DISCORD_BOT_TOKEN', 'abc')
+    assert Config.load(project / 'bot.toml').plugins['main'].run == 'node bot.ts'
+
+
+def test_npm_sdk_from_a_local_framework(tmp_path):
+    assert cli.npm_sdk_source(str(tmp_path), 'main') == f'file:{tmp_path.as_posix()}'
+
+
+def test_new_go_bot_has_a_go_plugin(tmp_path, monkeypatch, capsys):
+    assert cli.main(['new', 'Go Bot', '--dir', str(tmp_path), '--source', REMOTE, '--rev', 'main', '--lang', 'go']) == 0
+    project = tmp_path / 'go-bot'
+    names = {str(p.relative_to(project)) for p in project.rglob('*') if p.is_file()}
+    assert {'plugin/main.go', 'plugin/go.mod', 'plugin/main_test.go', 'Dockerfile'} <= names
+    assert 'cogs/hello.py' not in names
+    assert f'go get {cli.GO_SDK_MODULE}@main' in capsys.readouterr().out
+    assert 'FROM golang:' in (project / 'Dockerfile').read_text()
+    monkeypatch.setenv('DISCORD_BOT_TOKEN', 'abc')
+    assert Config.load(project / 'bot.toml').plugins['main'].run == './bot'
+
+
+def test_go_sdk_from_a_local_framework(tmp_path):
+    values = cli.go_sdk_values(str(tmp_path), 'main')
+    assert f'replace {cli.GO_SDK_MODULE} => {(tmp_path / "sdk" / "go").as_posix()}' in values['go_sdk_require']
+    assert values['go_get_step'] == 'go mod tidy'
+
+
+@pytest.mark.parametrize(
+    ('lang', 'source'),
+    [('java', 'plugin/src/main/java/bot/Bot.java'), ('kotlin', 'plugin/src/main/kotlin/bot/Bot.kt')],
+)
+def test_new_jvm_bot_builds_with_gradle(tmp_path, monkeypatch, lang, source):
+    assert cli.main(['new', 'JVM Bot', '--dir', str(tmp_path), '--source', REMOTE, '--lang', lang]) == 0
+    project = tmp_path / 'jvm-bot'
+    names = {str(p.relative_to(project)) for p in project.rglob('*') if p.is_file()}
+    assert {source, 'plugin/build.gradle.kts', 'plugin/settings.gradle.kts', 'Dockerfile'} <= names
+    assert 'cogs/hello.py' not in names
+    build = (project / 'plugin' / 'build.gradle.kts').read_text()
+    assert 'implementation("com.github.xionjames:tinaja-bot-base:main-SNAPSHOT")' in build
+    monkeypatch.setenv('DISCORD_BOT_TOKEN', 'abc')
+    assert Config.load(project / 'bot.toml').plugins['main'].run == 'build/install/plugin/bin/plugin'
+
+
+@pytest.mark.parametrize(
+    ('rev', 'version'),
+    [('main', 'main-SNAPSHOT'), ('v1.2', 'v1.2'), ('0a1b2c3d', '0a1b2c3d'), ('my-branch', 'my-branch-SNAPSHOT')],
+)
+def test_jitpack_versions(rev, version):
+    assert cli.jvm_sdk_values(REMOTE, rev)['jvm_sdk_dependency'].endswith(f':{version}")')
+
+
+def test_jvm_sdk_from_a_local_framework(tmp_path):
+    values = cli.jvm_sdk_values(str(tmp_path), 'main')
+    assert values['jvm_sdk_dependency'] == ''
+    assert (tmp_path / 'sdk' / 'java' / 'src' / 'main' / 'java').as_posix() in values['jvm_sdk_sources']
