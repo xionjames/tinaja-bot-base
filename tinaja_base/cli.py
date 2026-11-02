@@ -16,7 +16,11 @@ LANGUAGES = {
     'ruby': ['cogs/hello.py', 'tests/test_hello.py'],
     'ts': ['cogs/hello.py', 'tests/test_hello.py'],
     'go': ['cogs/hello.py', 'tests/test_hello.py'],
+    'java': ['cogs/hello.py', 'tests/test_hello.py'],
+    'kotlin': ['cogs/hello.py', 'tests/test_hello.py'],
 }
+# Overlay folders a language uses, in order; by default just LANGUAGES_DIR/<lang>
+OVERLAYS = {'java': ['jvm', 'java'], 'kotlin': ['jvm', 'kotlin']}
 GO_SDK_MODULE = 'github.com/xionjames/tinaja-bot-base/sdk/go'
 GITHUB_REMOTE = re.compile(r'github\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$')
 
@@ -89,6 +93,7 @@ def cmd_new(args):
         'ruby_sdk_source': ruby_sdk_source(source, args.rev),
         'npm_sdk_source': npm_sdk_source(source, args.rev),
         **go_sdk_values(source, args.rev),
+        **jvm_sdk_values(source, args.rev),
     }
     for relative, template in template_files(args.lang).items():
         destination = target / relative
@@ -99,7 +104,13 @@ def cmd_new(args):
     print(f'Created {target}. Next steps:')
     print(f'  cd {target} && uv sync && cp env.sample .env  # then set DISCORD_BOT_TOKEN')
     # What a language's dependency manager installs first
-    install = {'ruby': 'bundle install', 'ts': 'npm install', 'go': f'{values["go_get_step"]} && go build -o bot .'}
+    install = {
+        'ruby': 'bundle install',
+        'ts': 'npm install',
+        'go': f'{values["go_get_step"]} && go build -o bot .',
+        'java': 'gradle installDist',
+        'kotlin': 'gradle installDist',
+    }
     if args.lang in install:
         print(f'  (cd plugin && {install[args.lang]})')
     print('  uv run tinaja-bot run')
@@ -108,7 +119,7 @@ def cmd_new(args):
 def template_files(lang):
     """{path in the new Bot: template file} for a language"""
     files = {}
-    for root in [TEMPLATE_DIR, LANGUAGES_DIR / lang]:
+    for root in [TEMPLATE_DIR, *(LANGUAGES_DIR / overlay for overlay in OVERLAYS.get(lang, [lang]))]:
         for template in sorted(root.rglob('*')):
             if template.is_dir() or '__pycache__' in template.parts:
                 continue
@@ -155,6 +166,20 @@ def go_sdk_values(source, rev):
         return {'go_sdk_require': require, 'go_get_step': 'go mod tidy'}
     # The module path is fixed by sdk/go/go.mod, so a fork still downloads it from there
     return {'go_sdk_require': '', 'go_get_step': f'go get {GO_SDK_MODULE}@{rev}'}
+
+
+def jvm_sdk_values(source, rev):
+    """build.gradle.kts lines that give a Java or Kotlin Plugin the Java SDK: from JitPack, or a local clone's sources"""
+    source = framework_location(source)
+    if not _is_remote(source):
+        path = (Path(source).resolve() / 'sdk' / 'java' / 'src' / 'main' / 'java').as_posix()
+        return {'jvm_sdk_dependency': '', 'jvm_sdk_sources': f'\nsourceSets.main {{ java.srcDir("{path}") }}\n'}
+    match = GITHUB_REMOTE.search(source)
+    owner, repo = (match['owner'], match['repo']) if match else ('xionjames', 'tinaja-bot-base')
+    # JitPack versions: a commit hash or a tag as is, a branch as <branch>-SNAPSHOT
+    version = rev if re.fullmatch(r'[0-9a-f]{7,40}|v?\d.*', rev) else f'{rev}-SNAPSHOT'
+    dependency = f'implementation("com.github.{owner}:{repo}:{version}")'
+    return {'jvm_sdk_dependency': dependency, 'jvm_sdk_sources': ''}
 
 
 def framework_source(source, rev):
