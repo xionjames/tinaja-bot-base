@@ -91,3 +91,30 @@ jobs:
 
       - name: Check the TypeScript SDK against the protocol recordings
         run: uv run --no-project python sdk/conformance/run.py -- node sdk/ts/conformance/plugin.ts
+
+  go:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.22"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: sdk/go/go.mod
+
+      - name: Test the Go SDK
+        working-directory: sdk/go
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test ./...
+          go build -o conformance-plugin ./conformance
+
+      - name: Check the Go SDK against the protocol recordings
+        run: uv run --no-project python sdk/conformance/run.py -- sdk/go/conformance-plugin

@@ -301,3 +301,21 @@ def test_new_ts_bot_has_a_typescript_plugin(tmp_path, monkeypatch):
 
 def test_npm_sdk_from_a_local_framework(tmp_path):
     assert cli.npm_sdk_source(str(tmp_path), 'main') == f'file:{tmp_path.as_posix()}'
+
+
+def test_new_go_bot_has_a_go_plugin(tmp_path, monkeypatch, capsys):
+    assert cli.main(['new', 'Go Bot', '--dir', str(tmp_path), '--source', REMOTE, '--rev', 'main', '--lang', 'go']) == 0
+    project = tmp_path / 'go-bot'
+    names = {str(p.relative_to(project)) for p in project.rglob('*') if p.is_file()}
+    assert {'plugin/main.go', 'plugin/go.mod', 'plugin/main_test.go', 'Dockerfile'} <= names
+    assert 'cogs/hello.py' not in names
+    assert f'go get {cli.GO_SDK_MODULE}@main' in capsys.readouterr().out
+    assert 'FROM golang:' in (project / 'Dockerfile').read_text()
+    monkeypatch.setenv('DISCORD_BOT_TOKEN', 'abc')
+    assert Config.load(project / 'bot.toml').plugins['main'].run == './bot'
+
+
+def test_go_sdk_from_a_local_framework(tmp_path):
+    values = cli.go_sdk_values(str(tmp_path), 'main')
+    assert f'replace {cli.GO_SDK_MODULE} => {(tmp_path / "sdk" / "go").as_posix()}' in values['go_sdk_require']
+    assert values['go_get_step'] == 'go mod tidy'
