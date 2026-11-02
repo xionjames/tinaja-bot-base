@@ -21,9 +21,9 @@ RUN npm ci --omit=dev
 # second unnamed stage
 FROM node:24-slim
 
-# Create a non-root user
-RUN addgroup --system --gid 1001 app && \
-    adduser --system --uid 1001 --gid 1001 app
+# Create a non-root user (groupadd/useradd work on every Debian image, slim ones included)
+RUN groupadd --system --gid 1001 app && \
+    useradd --system --uid 1001 --gid 1001 app
 
 WORKDIR /code
 

@@ -13,19 +13,19 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project
 
-# install the locked gems, without the test ones, into plugin/vendor
+# install the locked gems, without the test ones, into plugin/vendor. Bundler is configured through the environment,
+# in both stages: the ruby images point its config file at /usr/local/bundle, outside what the final stage copies
+ENV BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT="development:test" BUNDLE_PATH=/code/plugin/vendor/bundle
 WORKDIR /code/plugin
 COPY plugin/Gemfile plugin/Gemfile.lock ./
-RUN bundle config set --local deployment true && \
-    bundle config set --local without 'development test' && \
-    bundle install
+RUN bundle install
 
 # second unnamed stage
 FROM ruby:3.4-slim
 
-# Create a non-root user
-RUN addgroup --system --gid 1001 app && \
-    adduser --system --uid 1001 --gid 1001 app
+# Create a non-root user (groupadd/useradd: the slim ruby image has no addgroup/adduser)
+RUN groupadd --system --gid 1001 app && \
+    useradd --system --uid 1001 --gid 1001 app
 
 WORKDIR /code
 
@@ -34,7 +34,7 @@ COPY --from=builder --chown=app:app /code/.venv /code/.venv
 COPY --chown=app:app bot.toml CONTEXT.md ./
 COPY --chown=app:app plugin/ ./plugin/
 COPY --from=builder --chown=app:app /code/plugin/vendor ./plugin/vendor
-COPY --from=builder --chown=app:app /code/plugin/.bundle ./plugin/.bundle
+ENV BUNDLE_DEPLOYMENT=1 BUNDLE_WITHOUT="development:test" BUNDLE_PATH=/code/plugin/vendor/bundle
 
 USER app
 
