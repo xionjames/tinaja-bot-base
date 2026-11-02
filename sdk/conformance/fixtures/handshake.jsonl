@@ -1,0 +1,3 @@
+{"in": {"type": "hello", "protocol": 1, "bot": {"name": "Conformance Bot", "prefix": "!", "id": "42"}}}
+{"out": {"type": "register", "commands": [{"name": "hello", "help": "Says World"}, {"name": "echo", "help": "Repeats what you say"}, {"name": "recap", "help": "The latest messages in the channel"}], "events": ["mention", "message"]}}
+{"in": {"type": "shutdown"}}

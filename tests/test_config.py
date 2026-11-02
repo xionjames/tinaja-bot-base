@@ -1,6 +1,6 @@
 import pytest
 
-from tinaja_base.config import Config, Intents
+from tinaja_base.config import Config, Intents, Plugin
 
 
 @pytest.fixture(autouse=True)
@@ -73,3 +73,28 @@ def test_reads_token_from_dotenv_next_to_the_toml(tmp_path, monkeypatch):
     monkeypatch.delenv('DISCORD_BOT_TOKEN')
     (tmp_path / '.env').write_text('DISCORD_BOT_TOKEN=from-dotenv\n')
     assert Config.load(write(tmp_path, '')).token == 'from-dotenv'
+
+
+def test_reads_plugins(tmp_path):
+    config = Config.load(
+        write(
+            tmp_path,
+            """
+[plugins.main]
+cwd = "plugin"
+run = "bundle exec ruby bot.rb"
+
+[plugins.extra]
+run = "./extra"
+""",
+        )
+    )
+    assert config.plugins == {
+        'main': Plugin(run='bundle exec ruby bot.rb', cwd='plugin'),
+        'extra': Plugin(run='./extra', cwd='.'),
+    }
+
+
+def test_a_plugin_needs_a_run_command(tmp_path):
+    with pytest.raises(TypeError):
+        Config.load(write(tmp_path, '[plugins.main]\ncwd = "plugin"\n'))

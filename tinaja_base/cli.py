@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import re
 import subprocess
 import sys
@@ -8,6 +9,12 @@ from string import Template
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE_DIR = Path(__file__).resolve().parent / 'templates' / 'new_bot'
+LANGUAGES_DIR = Path(__file__).resolve().parent / 'templates' / 'languages'
+# Base template files a language's Bot leaves out; its own files in LANGUAGES_DIR/<lang> add to or replace the rest
+LANGUAGES = {
+    'python': [],
+    'ruby': ['cogs/hello.py', 'tests/test_hello.py'],
+}
 GITHUB_REMOTE = re.compile(r'github\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$')
 
 
@@ -28,6 +35,7 @@ def main(argv=None):
     new.add_argument('--dir', default='.', help='where to create the project folder')
     new.add_argument('--source', help="the framework's git URL, or a local path while developing the framework")
     new.add_argument('--rev', default='main', help='framework branch, tag or commit to depend on')
+    new.add_argument('--lang', choices=LANGUAGES, default='python', help='language of the Commands (default: python)')
     new.set_defaults(func=cmd_new)
 
     check = sub.add_parser('check', help='check the bot is ready to build and ship')
@@ -70,16 +78,14 @@ def cmd_new(args):
     if target.exists():
         raise CliError(f'{target} already exists')
 
+    source = framework_location(args.source)
     values = {
         'bot_name': args.name,
         'bot_slug': slug,
-        'framework_source': framework_source(args.source, args.rev),
+        'framework_source': framework_source(source, args.rev),
+        'ruby_sdk_source': ruby_sdk_source(source, args.rev),
     }
-    for template in sorted(TEMPLATE_DIR.rglob('*')):
-        if template.is_dir() or '__pycache__' in template.parts:
-            continue
-        # Dotfiles are stored as dot-<name> so packaging tools don't skip them
-        relative = Path(*[part.replace('dot-', '.', 1) for part in template.relative_to(TEMPLATE_DIR).parts])
+    for relative, template in template_files(args.lang).items():
         destination = target / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         # safe_substitute leaves ${{ github.* }} and $PATH in the templates untouched
@@ -87,15 +93,46 @@ def cmd_new(args):
 
     print(f'Created {target}. Next steps:')
     print(f'  cd {target} && uv sync && cp env.sample .env  # then set DISCORD_BOT_TOKEN')
+    if args.lang == 'ruby':
+        print('  (cd plugin && bundle install)')
     print('  uv run tinaja-bot run')
 
 
-def framework_source(source, rev):
-    """The [tool.uv.sources] entry a new bot uses to depend on this framework"""
+def template_files(lang):
+    """{path in the new Bot: template file} for a language"""
+    files = {}
+    for root in [TEMPLATE_DIR, LANGUAGES_DIR / lang]:
+        for template in sorted(root.rglob('*')):
+            if template.is_dir() or '__pycache__' in template.parts:
+                continue
+            # Dotfiles are stored as dot-<name> so packaging tools don't skip them
+            relative = Path(*[part.replace('dot-', '.', 1) for part in template.relative_to(root).parts])
+            files[relative] = template
+    for left_out in LANGUAGES[lang]:
+        del files[Path(left_out)]
+    return files
+
+
+def framework_location(source):
+    """The framework's git URL or local path: --source, or this clone's origin remote"""
     if source is None:
         source = git(FRAMEWORK_ROOT, 'remote', 'get-url', 'origin')
         if source is None:
             raise CliError('could not find the framework git remote; pass --source <git-url>')
+    return source
+
+
+def ruby_sdk_source(source, rev):
+    """The Gemfile options a Ruby Plugin uses to get the tinaja gem from this framework's repo"""
+    source = framework_location(source)
+    if not _is_remote(source):
+        return f"path: '{(Path(source).resolve() / 'sdk' / 'ruby').as_posix()}'"
+    return f"git: '{https_url(source)}', ref: '{rev}', glob: 'sdk/ruby/*.gemspec'"
+
+
+def framework_source(source, rev):
+    """The [tool.uv.sources] entry a new bot uses to depend on this framework"""
+    source = framework_location(source)
     if not _is_remote(source):
         return f'{{ path = "{Path(source).resolve().as_posix()}", editable = true }}'
     return f'{{ git = "{https_url(source)}", rev = "{rev}" }}'
@@ -156,11 +193,48 @@ def check_project(project):
     except Exception as error:  # noqa: BLE001 - any error in the bot's own code would crash it on start
         problems.append(f'{config.cogs_dir}/ failed to import: {type(error).__name__}: {error}')
         return problems, warnings
-    if not config.replies and not any(cog.__cog_commands__ or cog.__cog_listeners__ for cog in cogs):
+    if (
+        not config.replies
+        and not config.plugins
+        and not any(cog.__cog_commands__ or cog.__cog_listeners__ for cog in cogs)
+    ):
         problems.append(f'the bot does nothing yet: add a Cog to {config.cogs_dir}/ or a [replies] entry to bot.toml')
+    for name, plugin in config.plugins.items():
+        plugin_problems, plugin_warnings = _check_plugin(config, name, plugin)
+        problems += plugin_problems
+        warnings += plugin_warnings
     if not Context.from_file(config.context_path).terms:
         warnings.append(f'{config.context_file} defines no glossary terms, so !glossary will be empty')
     return problems, warnings
+
+
+# A manifest without its lockfile builds with whatever versions are newest that day
+LOCKFILES = {
+    'Gemfile': ['Gemfile.lock'],
+    'package.json': ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock'],
+    'Cargo.toml': ['Cargo.lock'],
+}
+
+
+def _check_plugin(config, name, plugin):
+    from tinaja_base.plugins import PROTOCOL, PluginError, probe
+
+    folder = config.root / plugin.cwd
+    if not folder.is_dir():
+        return [f'plugin "{name}": folder {plugin.cwd}/ not found'], []
+    warnings = [
+        f'plugin "{name}": {plugin.cwd}/{manifest} has no lockfile ({" or ".join(locks)}), so builds may differ'
+        for manifest, locks in LOCKFILES.items()
+        if (folder / manifest).is_file() and not any((folder / lock).is_file() for lock in locks)
+    ]
+    hello = {'type': 'hello', 'protocol': PROTOCOL, 'bot': {'name': config.name, 'prefix': config.prefix, 'id': None}}
+    try:
+        register = asyncio.run(probe(name, plugin, config.root, hello))
+    except PluginError as error:
+        return [str(error)], warnings
+    if 'mention' in register.get('events', []) and not config.mentions:
+        warnings.append(f'plugin "{name}" listens for mentions, but bot.toml has no [mentions] table to send them')
+    return [], warnings
 
 
 def _check_git_source(project, url, rev):

@@ -1,0 +1,6 @@
+.env
+.venv/
+.git/
+__pycache__/
+plugin/.bundle/
+plugin/vendor/

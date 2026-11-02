@@ -1,0 +1,13 @@
+{"in": {"type": "hello", "protocol": 1, "bot": {"name": "Conformance Bot", "prefix": "!", "id": "42"}}}
+{"out": {"type": "register", "commands": [{"name": "hello", "help": "Says World"}, {"name": "echo", "help": "Repeats what you say"}, {"name": "recap", "help": "The latest messages in the channel"}], "events": ["mention", "message"]}}
+{"in": {"type": "command", "name": "recap", "args": ["2"], "channel_id": "10", "author": {"id": "1", "name": "jane", "display_name": "Jane", "mention": "<@1>", "bot": false}, "message": {"id": "103", "content": "!recap 2", "channel_id": "10", "author": {"id": "1", "name": "jane", "display_name": "Jane", "mention": "<@1>", "bot": false}}}}
+{"out": {"type": "history", "request_id": "1", "channel_id": "10", "limit": 2}}
+{"in": {"type": "message", "message": {"id": "104", "content": "ping", "channel_id": "10", "author": {"id": "2", "name": "bob", "display_name": "Bob", "mention": "<@2>", "bot": false}}}}
+{"in": {"type": "result", "request_id": "1", "messages": [{"id": "98", "content": "hi all", "channel_id": "10", "author": {"id": "2", "name": "bob", "display_name": "Bob", "mention": "<@2>", "bot": false}}, {"id": "99", "content": "hey", "channel_id": "10", "author": {"id": "1", "name": "jane", "display_name": "Jane", "mention": "<@1>", "bot": false}}]}}
+{"out": {"type": "send", "channel_id": "10", "content": "Bob: hi all\nJane: hey"}}
+{"out": {"type": "react", "channel_id": "10", "message_id": "104", "emoji": "🏓"}}
+{"in": {"type": "command", "name": "recap", "args": [], "channel_id": "10", "author": {"id": "1", "name": "jane", "display_name": "Jane", "mention": "<@1>", "bot": false}, "message": {"id": "105", "content": "!recap", "channel_id": "10", "author": {"id": "1", "name": "jane", "display_name": "Jane", "mention": "<@1>", "bot": false}}}}
+{"out": {"type": "history", "request_id": "2", "channel_id": "10", "limit": 5}}
+{"in": {"type": "result", "request_id": "2", "messages": []}}
+{"out": {"type": "send", "channel_id": "10", "content": "Nothing to recap yet."}}
+{"in": {"type": "shutdown"}}

@@ -1,0 +1,11 @@
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+# The example tracks the SDK in this repo; generated bots get it from git
+gem 'tinaja', path: '../../../sdk/ruby'
+
+group :development, :test do
+  gem 'minitest', '~> 5.25'
+  gem 'rake', '~> 13.2'
+end

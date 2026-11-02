@@ -5,7 +5,8 @@ Human-facing docs live in [README.md](README.md); read it for the user-facing be
 
 ## What this is
 `tinaja-bot-base` is a small Python framework for building prefix-command Discord bots on top of discord.py.
-A Bot is a folder with `bot.toml`, `CONTEXT.md` (glossary), a `cogs/` directory and a `.env` token.
+A Bot is a folder with `bot.toml`, `CONTEXT.md` (glossary), a `cogs/` directory and a `.env` token. A Bot's code can
+also be a Plugin in another language: a process the Bot talks to over stdin/stdout ([docs/protocol.md](docs/protocol.md)).
 The framework is consumed from git, not PyPI.
 
 ## Commands
@@ -20,6 +21,13 @@ The example bot is a separate uv project and is checked in CI too:
 ```bash
 cd examples/hello-bot && uv sync && uv run ruff check . && uv run ruff format --check . && uv run pytest
 ```
+SDKs are tested with their own tools plus the language-agnostic conformance runner:
+```bash
+cd sdk/ruby && bundle exec rake test                                    # Ruby SDK
+uv run python sdk/conformance/run.py -- ruby sdk/ruby/conformance/plugin.rb
+cd examples/ruby-bot/plugin && bundle exec rake test                    # Ruby example
+```
+The Python SDK's tests (`sdk/python/tests`, including conformance) run with the framework's `uv run pytest`.
 Before calling a change done, run lint, format check and tests for the framework and, if the change can affect bots,
 for `examples/hello-bot`. That's exactly what [.github/workflows/test.yaml](.github/workflows/test.yaml) runs.
 
@@ -43,14 +51,21 @@ tinaja_base/
   loader.py      find_cogs(): imports cogs/*.py and returns every commands.Cog defined there
   channel.py     recent_messages() helper
   cli.py         `tinaja-bot` CLI: new, run, check, build, publish
+  plugins.py     PluginCog / PluginProcess: runs [plugins.*] processes and speaks docs/protocol.md with them
   testing.py     fakes (FakeContext, FakeChannel, fake_message, run_command) for testing cogs offline
   cogs/          built-in cogs: glossary, mentions, replies
   templates/new_bot/   files copied by `tinaja-bot new`
+  templates/languages/<lang>/   per-language files that add to or replace new_bot (see LANGUAGES in cli.py)
 tests/           pytest suite for the framework
+docs/protocol.md       the Plugin protocol: the contract every SDK implements
+sdk/<lang>/            one SDK per language, each with a conformance/ Plugin
+sdk/conformance/       recorded exchanges (fixtures/*.jsonl) and run.py, which replays them against any Plugin
 examples/hello-bot/    a complete Bot using the framework
+examples/ruby-bot/     the same Bot as a Ruby Plugin
 ```
-Public API is what [tinaja_base/__init__.py](tinaja_base/__init__.py) exports plus `tinaja_base.testing`.
-Changing either is a breaking change for existing bots; call it out.
+Public API is what [tinaja_base/__init__.py](tinaja_base/__init__.py) exports plus `tinaja_base.testing`, the Plugin
+protocol and each SDK's API. Changing any of them in an incompatible way is a breaking change for existing bots; call it
+out.
 
 ## Conventions
 - Python >= 3.14, line length 120, **single quotes** (ruff format enforces it), ruff rules `I`, `UP`, `B`.
@@ -70,7 +85,11 @@ Changing either is a breaking change for existing bots; call it out.
 - If you change user-visible behaviour (CLI flags, `bot.toml` keys, testing helpers), update README.md, the template
   and the example bot so they stay consistent.
 - `fallback` under `[replies]` is reserved: it answers unknown Commands and is not itself a Command.
-- Never commit `.env` or tokens; `env.sample` is the only token file in git.
+- Never commit `.env` or tokens; `env.sample` is the only token file in git. Plugins never get `DISCORD_BOT_TOKEN`.
+- **Protocol changes** must stay backward compatible: add message types or optional fields, never rename or remove
+  them. Ids are strings (snowflakes overflow JavaScript numbers). Change [docs/protocol.md](docs/protocol.md), the
+  fixtures in `sdk/conformance/fixtures` and every SDK together; the conformance runner catches SDKs left behind.
+- A Plugin's stdout is the protocol: SDKs and Plugins log to stderr.
 
 ## Working style
 - Ask before assuming when a request is ambiguous; surface the ambiguity explicitly.
